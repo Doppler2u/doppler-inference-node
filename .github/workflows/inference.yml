@@ -31,5 +31,6 @@ jobs:
         env:
           PASSPHRASE: ${{ secrets.PASSPHRASE }}
           IDENTITY_PATH: identity.pem
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           python worker.py
