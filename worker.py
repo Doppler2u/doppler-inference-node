@@ -36,14 +36,35 @@ def fetch_latest_ai_paper():
 
 def perform_inference(title, text):
     """
-    Simulated Inference Engine.
-    In Q4, replace this with a call to an LLM.
+    Real Inference Engine using Groq (or fallback simulated inference).
     """
     print(f"[*] Running inference on paper: {title}")
-    clean_text = text.replace('\n', ' ')
-    words = clean_text.split()
-    insight = " ".join(words[:30]) + "..."
-    return f"Analyzed [{title}]: {insight} (Inference cost: 1.2 FLOPs)"
+    
+    groq_key = os.environ.get("GROQ_API_KEY")
+    if groq_key and groq_key.strip():
+        print("[-] GROQ_API_KEY found! Using real LLM for inference...")
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {groq_key.strip()}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "llama3-8b-8192",
+            "messages": [
+                {"role": "system", "content": "You are a research node. Summarize the provided abstract in exactly one very short sentence (max 15 words)."},
+                {"role": "user", "content": f"Title: {title}\nAbstract: {text}"}
+            ]
+        }
+        resp = requests.post(url, headers=headers, json=payload, timeout=15)
+        resp.raise_for_status()
+        insight = resp.json()["choices"][0]["message"]["content"].strip()
+        return f"Real Inference [{title}]: {insight}"
+    else:
+        print("[-] No GROQ_API_KEY found. Falling back to local simulated inference.")
+        clean_text = text.replace('\n', ' ')
+        words = clean_text.split()
+        insight = " ".join(words[:25]) + "..."
+        return f"Simulated Inference [{title}]: {insight}"
 
 def job():
     """The main inference job."""
