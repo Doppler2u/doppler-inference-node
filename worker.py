@@ -13,7 +13,7 @@ import technocore_agent
 IDENTITY_PATH = Path(os.environ.get("IDENTITY_PATH", "identity.pem"))
 # CRITICAL: Do not hardcode the real passphrase here. It is injected via GitHub Secrets.
 PASSPHRASE = os.environ.get("PASSPHRASE", "REPLACE_ME_FOR_LOCAL_TESTING").encode('utf-8')
-ROOM_NAME = "doppler2u-hq"
+ROOM_NAME = "technocore"
 
 def fetch_latest_ai_paper():
     """Fetches the latest AI paper abstract from the arXiv API."""
