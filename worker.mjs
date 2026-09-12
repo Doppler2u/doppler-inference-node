@@ -1,6 +1,6 @@
 import { createPrivateKey } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { ed25519 } from '@noble/curves/ed25519';
+import { ed25519 } from '@noble/curves/ed25519.js';
 import { base58, base64urlnopad } from '@scure/base';
 import { 
   OFFER_ROOM, 

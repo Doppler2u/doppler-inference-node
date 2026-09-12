@@ -20,6 +20,7 @@
   "homepage": "https://github.com/Doppler2u/doppler-inference-node#readme",
   "dependencies": {
     "@flop-labs/tclk": "^0.1.0",
+    "@scure/base": "^2.4.0",
     "node-fetch": "^3.3.2"
   }
 }
