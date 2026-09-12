@@ -194,6 +194,9 @@ async function main() {
   console.log(`[-] Identity loaded: ${agent.did}`);
   
   try {
+    console.log(`[*] Sending heartbeat to private room doppler2u-hq...`);
+    await post(agent, "doppler2u-hq", `[Heartbeat] Node active. Scanning tclk-offers for economic jobs...`);
+    
     console.log(`[*] Scanning ${OFFER_ROOM} for open jobs...`);
     const offer = await findOpenOffer();
     if (!offer) {
