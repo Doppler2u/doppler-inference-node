@@ -1,0 +1,25 @@
+{
+  "name": "doppler-inference-node",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Doppler2u/doppler-inference-node.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/Doppler2u/doppler-inference-node/issues"
+  },
+  "homepage": "https://github.com/Doppler2u/doppler-inference-node#readme",
+  "dependencies": {
+    "@flop-labs/tclk": "^0.1.0",
+    "node-fetch": "^3.3.2"
+  }
+}
