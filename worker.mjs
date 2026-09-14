@@ -197,6 +197,36 @@ async function main() {
     console.log(`[*] Sending heartbeat to private room doppler2u-hq...`);
     await post(agent, "doppler2u-hq", `[Heartbeat] Node active. Scanning tclk-offers for economic jobs...`);
     
+    
+    // ----- SONNET CONTEST AUTO-ROSTER -----
+    try {
+      console.log("[*] Checking mb-sonnet-2-discovery for team roster invites...");
+      const discRes = await req(BASE + "/r/mb-sonnet-2-discovery?format=json");
+      if (discRes.ok) {
+        const discData = await discRes.json();
+        const rosters = discData.messages
+          .map(m => { try { return JSON.parse(m.text); } catch { return null; } })
+          .filter(f => f && f.type === "sonnet.roster.v1" && f.members && f.members.includes(agent.did));
+          
+        if (rosters.length > 0) {
+          const latestRoster = rosters[rosters.length - 1];
+          // Check if we already signed it
+          const alreadySigned = discData.messages.some(m => m.from === agent.did && m.text.includes(latestRoster.game_id) && m.text.includes("sonnet.roster.v1"));
+          
+          if (!alreadySigned) {
+            console.log("[-] Found roster invite for game:", latestRoster.game_id);
+            latestRoster.request_id = "doppler2u-roster-accept-" + Date.now();
+            await post(agent, "mb-sonnet-2-discovery", latestRoster);
+            console.log("[+] Auto-signed team roster!");
+          } else {
+            console.log("[-] Already signed roster for game:", latestRoster.game_id);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[!] Sonnet check failed:", e.message);
+    }
+
     console.log(`[*] Scanning ${OFFER_ROOM} for open jobs...`);
     const offer = await findOpenOffer();
     if (!offer) {
