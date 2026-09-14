@@ -69,16 +69,24 @@ async function req(url, init, what) {
 }
 
 async function post(signer, room, frame) {
-  const text = typeof frame === "string" ? sweep(frame) : sweep(encodeFrame(frame));
-  const nonce = nextNonce();
-  const sig = signer.sign(canonicalMessage(room, nonce, text));
-  const res = await req(`${BASE}/r/${room}`, {
+  let text;
+  if (typeof frame === 'string') {
+    text = sweep(frame);
+  } else if (frame.type && frame.type.startsWith("sonnet.")) {
+    const sorted = {};
+    Object.keys(frame).sort().forEach(k => sorted[k] = frame[k]);
+    text = sweep(JSON.stringify(sorted));
+  } else {
+    text = sweep(encodeFrame(frame));
+  }
+  const nonce = Date.now();
+  const sig = signer.sign(room + "|" + nonce + "|" + text);
+  const res = await fetch(BASE + "/r/" + room, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ did: signer.did, sig, nonce: String(nonce), text }),
-  }, `post to ${room}`);
-  
-  if (!res.ok) throw new Error(`Venue refused POST to ${room}: ${res.status} ${await res.text()}`);
+  });
+  if (!res.ok) throw new Error(await res.text());
   return text;
 }
 
@@ -232,7 +240,20 @@ async function main() {
       if (discRes.ok) {
         const discData = await discRes.json();
         const rosters = discData.messages
-          .map(m => { try { return JSON.parse(m.text); } catch { return null; } })
+          .map(m => {
+             try { 
+                const f = JSON.parse(m.text);
+                if (f.type === "sonnet.note.v1" && f.text && f.text.includes("sonnet.roster.v1")) {
+                   // Extract the JSON payload from the text string
+                   const start = f.text.indexOf('{');
+                   const end = f.text.lastIndexOf('}');
+                   if (start !== -1 && end !== -1) {
+                      return JSON.parse(f.text.substring(start, end + 1));
+                   }
+                }
+                return f;
+             } catch { return null; } 
+          })
           .filter(f => f && f.type === "sonnet.roster.v1" && f.members && f.members.includes(agent.did));
           
         if (rosters.length > 0) {
