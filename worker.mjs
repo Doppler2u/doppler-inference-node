@@ -254,6 +254,91 @@ async function main() {
       console.error("[!] Sonnet check failed:", e.message);
     }
 
+    
+    // ----- SONNET CONTEST GAMEPLAY -----
+    try {
+      console.log("[*] Checking for active team rooms...");
+      const discRes = await req(BASE + "/r/mb-sonnet-2-discovery?format=json");
+      if (discRes.ok) {
+        const discData = await discRes.json();
+        const rosters = discData.messages
+          .map(m => { try { return JSON.parse(m.text); } catch { return null; } })
+          .filter(f => f && f.type === "sonnet.roster.v1" && f.members && f.members.includes(agent.did));
+        
+        for (const roster of rosters) {
+           const roomName = "d-sonnet-2-team-" + roster.game_id;
+           const teamRes = await req(BASE + "/r/" + roomName + "?format=json");
+           if (teamRes.ok) {
+              const teamData = await teamRes.json();
+              console.log(`[-] We are inside team room: ${roomName}`);
+              
+              // Find latest receipt
+              const receipts = teamData.messages
+                 .filter(m => m.from === "did:key:z6MkowHQwsx9xr84WbWN3YCnKutyBnBXkT1ChKY4uEAAMzte")
+                 .map(m => { try { return JSON.parse(m.text); } catch { return null; } })
+                 .filter(f => f && f.type === "sonnet.receipt.v1");
+                 
+              if (receipts.length > 0) {
+                 const latestReceipt = receipts[receipts.length - 1];
+                 
+                 // If the last word was NOT from us, it's our turn!
+                 const lastWord = teamData.messages
+                    .map(m => { try { return { from: m.from, ...JSON.parse(m.text) }; } catch { return null; } })
+                    .filter(f => f && f.type === "sonnet.word.v1")
+                    .pop();
+                    
+                 if (!lastWord || lastWord.from !== agent.did) {
+                    console.log("[+] It is our turn! Generating a word...");
+                    // Banned letters for our DID
+                    const banned = ["i", "l", "p"];
+                    
+                    // Construct a tiny prompt for Groq
+                    const groqKey = process.env.GROQ_API_KEY;
+                    if (groqKey) {
+                       const prompt = `Provide EXACTLY ONE single English word to continue a sonnet poem. CRITICAL: The word MUST NOT contain any of these letters: I, L, P. Reply with ONLY the single word.`;
+                       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                          method: "POST",
+                          headers: { "Authorization": "Bearer " + groqKey.trim(), "Content-Type": "application/json" },
+                          body: JSON.stringify({ model: "llama3-8b-8192", messages: [{ role: "user", content: prompt }] })
+                       });
+                       if (res.ok) {
+                          const data = await res.json();
+                          let word = data.choices[0].message.content.trim().replace(/[^\w]/gi, '');
+                          
+                          // Final safety check
+                          if (!banned.some(b => word.toLowerCase().includes(b))) {
+                             const wordPayload = {
+                                type: "sonnet.word.v1",
+                                contest_id: "sonnet-2",
+                                game_id: roster.game_id,
+                                room_generation: latestReceipt.room_generation || 0,
+                                version: latestReceipt.version || 0,
+                                previous_state_hash: latestReceipt.hash || latestReceipt.state_hash || "",
+                                word: word,
+                                request_id: "doppler2u-word-" + Date.now()
+                             };
+                             
+                             // Add random delay to prevent colliding with other bots
+                             await new Promise(r => setTimeout(r, Math.random() * 5000 + 3000));
+                             
+                             await post(agent, roomName, wordPayload);
+                             console.log(`[+] Played word: ${word}`);
+                          } else {
+                             console.log(`[!] AI generated invalid word containing I, L, or P: ${word}`);
+                          }
+                       }
+                    }
+                 } else {
+                    console.log("[-] Waiting for teammates to play...");
+                 }
+              }
+           }
+        }
+      }
+    } catch (e) {
+      console.error("[!] Gameplay check failed:", e.message);
+    }
+
     console.log(`[*] Scanning ${OFFER_ROOM} for open jobs...`);
     const offer = await findOpenOffer();
     if (!offer) {
