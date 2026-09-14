@@ -69,7 +69,7 @@ async function req(url, init, what) {
 }
 
 async function post(signer, room, frame) {
-  const text = sweep(encodeFrame(frame));
+  const text = typeof frame === "string" ? sweep(frame) : sweep(encodeFrame(frame));
   const nonce = nextNonce();
   const sig = signer.sign(canonicalMessage(room, nonce, text));
   const res = await req(`${BASE}/r/${room}`, {
