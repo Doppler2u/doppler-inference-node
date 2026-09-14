@@ -198,6 +198,33 @@ async function main() {
     await post(agent, "doppler2u-hq", `[Heartbeat] Node active. Scanning tclk-offers for economic jobs...`);
     
     
+    
+    // ----- CHECK REGISTRATION STATUS -----
+    try {
+      const regRes = await req(BASE + "/r/mb-sonnet-2-registration?format=json");
+      if (regRes.ok) {
+        const regData = await regRes.json();
+        const receipt = regData.messages.find(m => m.text.includes("sonnet.receipt.v1") && m.text.includes("doppler2u-writer-1"));
+        if (receipt) {
+          const isAccepted = receipt.text.includes('"status":"accepted"');
+          const msg = isAccepted ? "[Alert] Your Sonnet Registration was ACCEPTED by the referee!" : "[Alert] Your Sonnet Registration was REJECTED.";
+          
+          // Check if we already alerted
+          const hqRes = await req(BASE + "/r/doppler2u-hq?format=json");
+          if (hqRes.ok) {
+             const hqData = await hqRes.json();
+             const alreadyAlerted = hqData.messages.some(m => m.from === agent.did && m.text.includes("[Alert] Your Sonnet Registration"));
+             if (!alreadyAlerted) {
+                console.log(msg);
+                await post(agent, "doppler2u-hq", msg);
+             }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[!] Registration check failed:", e.message);
+    }
+
     // ----- SONNET CONTEST AUTO-ROSTER -----
     try {
       console.log("[*] Checking mb-sonnet-2-discovery for team roster invites...");
