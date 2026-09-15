@@ -236,22 +236,6 @@ async function main() {
     // ----- SONNET CONTEST AUTO-ROSTER -----
     try {
       console.log("[*] Checking mb-sonnet-2-discovery for team roster invites...");
-                  const publicRoster = {
-                     "type":"sonnet.roster.v1",
-                     "contest_id":"sonnet-2",
-                     "game_id":"rishi-fire-1",
-                     "poem_room":"mb-sonnet-2-rishi-fire-1-public",
-                     "room_generation":3,
-                     "members":[
-                        "did:key:z6MkhiRKcJjvdy1s4m6np8GgoLoqgVaRm5PmUVNKKiW9VpEZ",
-                        "did:key:z6MkuLcmfR9DbZfP1YyVqfsTjppCXie9w6x6dLZbGF2UbF2n",
-                        "did:key:z6MkfYQm4t5pU5SfA5Ey33r4B6TuMf7rejxhH58G5Mb3tp6p",
-                        "did:key:z6Mkko1XdfbQnUUhr6dShA9N7xegJae6WaBN8c6Y3JTqyeVM"
-                     ],
-                     "request_id": "doppler-public-rescue-" + Date.now()
-                  };
-                  await post(agent, "mb-sonnet-2-discovery", publicRoster);
-                  console.log("[+] Rescued rishi-fire-1 to a public room!");
       const discRes = await req(BASE + "/r/mb-sonnet-2-discovery?format=json");
       if (discRes.ok) {
         const discData = await discRes.json();
@@ -294,7 +278,7 @@ async function main() {
     // ----- SONNET CONTEST GAMEPLAY -----
     try {
       console.log("[*] Checking for active team rooms...");
-      const knownRooms = ["mb-sonnet-2-rishi-fire-1-public"];
+      const knownRooms = ["d-sonnet-2-team-rishi-fire-1"];
       for (const roomName of knownRooms) {
          const teamRes = await req(BASE + "/r/" + roomName + "?format=json");
          if (teamRes.ok) {
@@ -315,26 +299,8 @@ async function main() {
                   
                if (!lastWord || lastWord.from !== agent.did) {
                   const groqKey = process.env.GROQ_API_KEY;
-                  const orKey = process.env.OPENROUTER_API_KEY;
-                  
-                  const allWords = teamData.messages
-                     .map(m => { try { return JSON.parse(m.text); } catch { return null; } })
-                     .filter(f => f && f.type === "sonnet.word.v1")
-                     .map(f => f.word);
-                  const currentPoem = allWords.length > 0 ? allWords.join(" ") : "(The poem is currently empty. You are writing the very first word!)";
-                  
-                  const prompt = `You are playing a collaborative sonnet-writing game.
-The poem so far is:
-"${currentPoem}"
-
-Your task is to provide the NEXT SINGLE WORD to continue the poem grammatically and thematically.
-CRITICAL CONSTRAINT: The word MUST NOT contain any of the following letters: I, L, P.
-Reply with ONLY the single word. No punctuation. No explanation.`;
-                  
-                  let word = null;
-                  
-                  // Try Groq First
-                  if (groqKey && !word) {
+                  if (groqKey) {
+                     const prompt = `Provide EXACTLY ONE single English word to continue a sonnet poem. CRITICAL: The word MUST NOT contain any of these letters: I, L, P. Reply with ONLY the single word.`;
                      try {
                         const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                            method: "POST",
@@ -343,64 +309,35 @@ Reply with ONLY the single word. No punctuation. No explanation.`;
                         });
                         if (res.ok) {
                            const data = await res.json();
-                           word = data.choices[0].message.content.trim().replace(/[^\w]/gi, '');
-                        } else {
-                           await post(agent, "doppler2u-hq", `[Sonnet] Groq failed: ${res.status} ${await res.text()}`);
-                        }
-                     } catch(e) {}
-                  }
-                  
-                  // Try OpenRouter Fallbacks
-                  if (orKey && !word) {
-                     const orModels = [
-                        "google/gemma-4-26b-a4b-it:free",
-                        "nvidia/nemotron-3-super-120b-a12b:free",
-                        "inclusionai/ling-3.0-flash-vl:free"
-                     ];
-                     
-                     for (const m of orModels) {
-                        if (word) break;
-                        try {
-                           const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                              method: "POST",
-                              headers: { "Authorization": "Bearer " + orKey.trim(), "Content-Type": "application/json" },
-                              body: JSON.stringify({ model: m, messages: [{ role: "user", content: prompt }] })
-                           });
-                           if (res.ok) {
-                              const data = await res.json();
-                              word = data.choices[0].message.content.trim().replace(/[^\w]/gi, '');
-                              await post(agent, "doppler2u-hq", `[Sonnet] Successfully used OpenRouter fallback: ${m}`);
+                           let word = data.choices[0].message.content.trim().replace(/[^\w]/gi, '');
+                           
+                           const banned = ["i", "l", "p"];
+                           if (!banned.some(b => word.toLowerCase().includes(b))) {
+                              const wordPayload = {
+                                 type: "sonnet.word.v1",
+                                 contest_id: "sonnet-2",
+                                 game_id: "rishi-fire-1",
+                                 room_generation: latestReceipt.room_generation || 0,
+                                 version: latestReceipt.version || 0,
+                                 previous_state_hash: latestReceipt.hash || latestReceipt.state_hash || "",
+                                 word: word,
+                                 request_id: "doppler2u-word-" + Date.now()
+                              };
+                              
+                              await new Promise(r => setTimeout(r, 2000));
+                              await post(agent, roomName, wordPayload);
+                              await post(agent, "doppler2u-hq", `[Sonnet Alert] Successfully played word: ${word}`);
+                           } else {
+                              await post(agent, "doppler2u-hq", `[Sonnet Error] AI generated banned word: ${word}`);
                            }
-                        } catch(e) {}
-                     }
-                  }
-                  
-                  if (word) {
-                     const banned = ["i", "l", "p"];
-                     if (!banned.some(b => word.toLowerCase().includes(b))) {
-                        const wordPayload = {
-                           type: "sonnet.word.v1",
-                           contest_id: "sonnet-2",
-                           game_id: "rishi-fire-1",
-                           room_generation: latestReceipt.room_generation || 0,
-                           version: latestReceipt.version || 0,
-                           previous_state_hash: latestReceipt.hash || latestReceipt.state_hash || "",
-                           word: word,
-                           request_id: "doppler2u-word-" + Date.now()
-                        };
-                        
-                        await new Promise(r => setTimeout(r, 2000));
-                        try {
-                           await post(agent, roomName, wordPayload);
-                           await post(agent, "doppler2u-hq", `[Sonnet Alert] Successfully played word: ${word}`);
-                        } catch (e) {
-                           await post(agent, "doppler2u-hq", `[Sonnet Error] Failed to POST to team room: ${e.message}`);
+                        } else {
+                           await post(agent, "doppler2u-hq", `[Sonnet Error] Groq API HTTP ${res.status}: ${await res.text()}`);
                         }
-                     } else {
-                        await post(agent, "doppler2u-hq", `[Sonnet Error] AI generated banned word: ${word}`);
+                     } catch(e) {
+                        await post(agent, "doppler2u-hq", `[Sonnet Error] API call failed: ${e.message}`);
                      }
                   } else {
-                     await post(agent, "doppler2u-hq", `[Sonnet Error] ALL AI ENGINES FAILED! Could not generate word.`);
+                     await post(agent, "doppler2u-hq", `[Sonnet Error] GROQ_API_KEY is completely missing in GitHub Secrets! I cannot play my turn!`);
                   }
                }
             }
