@@ -374,8 +374,12 @@ Reply with ONLY the single word. No punctuation. No explanation.`;
                         };
                         
                         await new Promise(r => setTimeout(r, 2000));
-                        await post(agent, roomName, wordPayload);
-                        await post(agent, "doppler2u-hq", `[Sonnet Alert] Successfully played word: ${word}`);
+                        try {
+                           await post(agent, roomName, wordPayload);
+                           await post(agent, "doppler2u-hq", `[Sonnet Alert] Successfully played word: ${word}`);
+                        } catch (e) {
+                           await post(agent, "doppler2u-hq", `[Sonnet Error] Failed to POST to team room: ${e.message}`);
+                        }
                      } else {
                         await post(agent, "doppler2u-hq", `[Sonnet Error] AI generated banned word: ${word}`);
                      }
