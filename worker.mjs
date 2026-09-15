@@ -128,18 +128,18 @@ async function performInference() {
   const text = summaryMatch[1].replace(/<\/?summary>/g, '').trim();
   
   const payload = {
-    model: "meta-llama/llama-3-8b-instruct:free",
+    model: "llama-3.1-8b-instant",
     messages: [
       { role: "system", content: "You are a research node. Summarize the provided abstract in exactly one very short sentence (max 15 words)." },
       { role: "user", content: `Title: ${title}\nAbstract: ${text}` }
     ]
   };
 
-  const orKey = process.env.OPENROUTER_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY;
   if (groqKey?.trim()) {
     try {
       console.log("[-] Attempting Groq inference...");
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { "Authorization": `Bearer ${groqKey.trim()}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -156,8 +156,8 @@ async function performInference() {
   if (openrouterKey?.trim()) {
     try {
       console.log("[-] Attempting OpenRouter inference...");
-      payload.model = "meta-llama/llama-3-8b-instruct:free";
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      payload.model = "llama-3.1-8b-instant";
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { "Authorization": `Bearer ${openrouterKey.trim()}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -298,14 +298,14 @@ async function main() {
                   .pop();
                   
                if (!lastWord || lastWord.from !== agent.did) {
-                  const orKey = process.env.OPENROUTER_API_KEY;
-                  if (orKey) {
+                  const groqKey = process.env.GROQ_API_KEY;
+                  if (groqKey) {
                      const prompt = `Provide EXACTLY ONE single English word to continue a sonnet poem. CRITICAL: The word MUST NOT contain any of these letters: I, L, P. Reply with ONLY the single word.`;
                      try {
-                        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                            method: "POST",
-                           headers: { "Authorization": "Bearer " + orKey.trim(), "Content-Type": "application/json" },
-                           body: JSON.stringify({ model: "meta-llama/llama-3-8b-instruct:free", messages: [{ role: "user", content: prompt }] })
+                           headers: { "Authorization": "Bearer " + groqKey.trim(), "Content-Type": "application/json" },
+                           body: JSON.stringify({ model: "llama-3.1-8b-instant", messages: [{ role: "user", content: prompt }] })
                         });
                         if (res.ok) {
                            const data = await res.json();
@@ -337,7 +337,7 @@ async function main() {
                         await post(agent, "doppler2u-hq", `[Sonnet Error] API call failed: ${e.message}`);
                      }
                   } else {
-                     await post(agent, "doppler2u-hq", `[Sonnet Error] OPENROUTER_API_KEY is completely missing in GitHub Secrets! I cannot play my turn!`);
+                     await post(agent, "doppler2u-hq", `[Sonnet Error] GROQ_API_KEY is completely missing in GitHub Secrets! I cannot play my turn!`);
                   }
                }
             }
