@@ -299,8 +299,14 @@ async function main() {
                   
                if (!lastWord || lastWord.from !== agent.did) {
                   const groqKey = process.env.GROQ_API_KEY;
-                  if (groqKey) {
-                     const prompt = `Provide EXACTLY ONE single English word to continue a sonnet poem. CRITICAL: The word MUST NOT contain any of these letters: I, L, P. Reply with ONLY the single word.`;
+                  const orKey = process.env.OPENROUTER_API_KEY;
+                  
+                  const prompt = `Provide EXACTLY ONE single English word to continue a sonnet poem. CRITICAL: The word MUST NOT contain any of these letters: I, L, P. Reply with ONLY the single word.`;
+                  
+                  let word = null;
+                  
+                  // Try Groq First
+                  if (groqKey && !word) {
                      try {
                         const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                            method: "POST",
@@ -309,35 +315,60 @@ async function main() {
                         });
                         if (res.ok) {
                            const data = await res.json();
-                           let word = data.choices[0].message.content.trim().replace(/[^\w]/gi, '');
-                           
-                           const banned = ["i", "l", "p"];
-                           if (!banned.some(b => word.toLowerCase().includes(b))) {
-                              const wordPayload = {
-                                 type: "sonnet.word.v1",
-                                 contest_id: "sonnet-2",
-                                 game_id: "rishi-fire-1",
-                                 room_generation: latestReceipt.room_generation || 0,
-                                 version: latestReceipt.version || 0,
-                                 previous_state_hash: latestReceipt.hash || latestReceipt.state_hash || "",
-                                 word: word,
-                                 request_id: "doppler2u-word-" + Date.now()
-                              };
-                              
-                              await new Promise(r => setTimeout(r, 2000));
-                              await post(agent, roomName, wordPayload);
-                              await post(agent, "doppler2u-hq", `[Sonnet Alert] Successfully played word: ${word}`);
-                           } else {
-                              await post(agent, "doppler2u-hq", `[Sonnet Error] AI generated banned word: ${word}`);
-                           }
+                           word = data.choices[0].message.content.trim().replace(/[^\w]/gi, '');
                         } else {
-                           await post(agent, "doppler2u-hq", `[Sonnet Error] Groq API HTTP ${res.status}: ${await res.text()}`);
+                           await post(agent, "doppler2u-hq", `[Sonnet] Groq failed: ${res.status} ${await res.text()}`);
                         }
-                     } catch(e) {
-                        await post(agent, "doppler2u-hq", `[Sonnet Error] API call failed: ${e.message}`);
+                     } catch(e) {}
+                  }
+                  
+                  // Try OpenRouter Fallbacks
+                  if (orKey && !word) {
+                     const orModels = [
+                        "google/gemma-4-26b-a4b-it:free",
+                        "nvidia/nemotron-3-super-120b-a12b:free",
+                        "inclusionai/ling-3.0-flash-vl:free"
+                     ];
+                     
+                     for (const m of orModels) {
+                        if (word) break;
+                        try {
+                           const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                              method: "POST",
+                              headers: { "Authorization": "Bearer " + orKey.trim(), "Content-Type": "application/json" },
+                              body: JSON.stringify({ model: m, messages: [{ role: "user", content: prompt }] })
+                           });
+                           if (res.ok) {
+                              const data = await res.json();
+                              word = data.choices[0].message.content.trim().replace(/[^\w]/gi, '');
+                              await post(agent, "doppler2u-hq", `[Sonnet] Successfully used OpenRouter fallback: ${m}`);
+                           }
+                        } catch(e) {}
+                     }
+                  }
+                  
+                  if (word) {
+                     const banned = ["i", "l", "p"];
+                     if (!banned.some(b => word.toLowerCase().includes(b))) {
+                        const wordPayload = {
+                           type: "sonnet.word.v1",
+                           contest_id: "sonnet-2",
+                           game_id: "rishi-fire-1",
+                           room_generation: latestReceipt.room_generation || 0,
+                           version: latestReceipt.version || 0,
+                           previous_state_hash: latestReceipt.hash || latestReceipt.state_hash || "",
+                           word: word,
+                           request_id: "doppler2u-word-" + Date.now()
+                        };
+                        
+                        await new Promise(r => setTimeout(r, 2000));
+                        await post(agent, roomName, wordPayload);
+                        await post(agent, "doppler2u-hq", `[Sonnet Alert] Successfully played word: ${word}`);
+                     } else {
+                        await post(agent, "doppler2u-hq", `[Sonnet Error] AI generated banned word: ${word}`);
                      }
                   } else {
-                     await post(agent, "doppler2u-hq", `[Sonnet Error] GROQ_API_KEY is completely missing in GitHub Secrets! I cannot play my turn!`);
+                     await post(agent, "doppler2u-hq", `[Sonnet Error] ALL AI ENGINES FAILED! Could not generate word.`);
                   }
                }
             }
