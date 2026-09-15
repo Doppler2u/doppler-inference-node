@@ -94,7 +94,7 @@ const notes = {
   async get(ns, key) {
     const res = await req(`${BASE}/kv/${ns}/${key}`, undefined, `kv get ${ns}/${key}`);
     if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`KV GET failed: ${res.status}: ${await res.text()}\`);
+    if (!res.ok) throw new Error(`KV GET failed: ${res.status}: ${await res.text()}`);
     const body = await res.text();
     const value = body.split("\n").filter(l => !l.startsWith("!!") && l.trim() !== "").join("\n").trimEnd();
     return value === "" ? null : value;
@@ -104,7 +104,7 @@ const notes = {
     const url = `${BASE}/kv/${ns}/${key}/set/${encodeURIComponent(value)}${query}`;
     const res = await req(url, undefined, `kv set ${ns}/${key}`);
     if (res.status === 409) return false;
-    if (!res.ok) throw new Error(`KV SET failed: ${res.status}: ${await res.text()}\`);
+    if (!res.ok) throw new Error(`KV SET failed: ${res.status}: ${await res.text()}`);
     return true;
   },
 };
@@ -144,7 +144,7 @@ async function performInference() {
         headers: { "Authorization": `Bearer ${groqKey.trim()}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error(`Groq HTTP ${res.status}: ${await res.text()}\`);
+      if (!res.ok) throw new Error(`Groq HTTP ${res.status}: ${await res.text()}`);
       const data = await res.json();
       return `Real Inference (Groq) [${title}]: ${data.choices[0].message.content.trim()}`;
     } catch (e) {
@@ -162,7 +162,7 @@ async function performInference() {
         headers: { "Authorization": `Bearer ${openrouterKey.trim()}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}: ${await res.text()}\`);
+      if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}: ${await res.text()}`);
       const data = await res.json();
       return `Real Inference (OpenRouter) [${title}]: ${data.choices[0].message.content.trim()}`;
     } catch (e) {
@@ -331,7 +331,7 @@ async function main() {
                               await post(agent, "doppler2u-hq", `[Sonnet Error] AI generated banned word: ${word}`);
                            }
                         } else {
-                           await post(agent, "doppler2u-hq", `[Sonnet Error] Groq API HTTP ${res.status}: ${await res.text()}\`);
+                           await post(agent, "doppler2u-hq", `[Sonnet Error] Groq API HTTP ${res.status}: ${await res.text()}`);
                         }
                      } catch(e) {
                         await post(agent, "doppler2u-hq", `[Sonnet Error] API call failed: ${e.message}`);
