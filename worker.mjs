@@ -235,7 +235,23 @@ async function main() {
 
     // ----- SONNET CONTEST AUTO-ROSTER -----
     try {
-      console.log("[*] Checking mb-sonnet-2-discovery for team roster invites..."); await post(agent, "mb-sonnet-2-discovery", "yes-luxion"); console.log("[+] Requested to join luxion-1");
+      console.log("[*] Checking mb-sonnet-2-discovery for team roster invites...");
+                  const publicRoster = {
+                     "type":"sonnet.roster.v1",
+                     "contest_id":"sonnet-2",
+                     "game_id":"rishi-fire-1",
+                     "poem_room":"mb-sonnet-2-rishi-fire-1-public",
+                     "room_generation":3,
+                     "members":[
+                        "did:key:z6MkhiRKcJjvdy1s4m6np8GgoLoqgVaRm5PmUVNKKiW9VpEZ",
+                        "did:key:z6MkuLcmfR9DbZfP1YyVqfsTjppCXie9w6x6dLZbGF2UbF2n",
+                        "did:key:z6MkfYQm4t5pU5SfA5Ey33r4B6TuMf7rejxhH58G5Mb3tp6p",
+                        "did:key:z6Mkko1XdfbQnUUhr6dShA9N7xegJae6WaBN8c6Y3JTqyeVM"
+                     ],
+                     "request_id": "doppler-public-rescue-" + Date.now()
+                  };
+                  await post(agent, "mb-sonnet-2-discovery", publicRoster);
+                  console.log("[+] Rescued rishi-fire-1 to a public room!");
       const discRes = await req(BASE + "/r/mb-sonnet-2-discovery?format=json");
       if (discRes.ok) {
         const discData = await discRes.json();
@@ -278,7 +294,7 @@ async function main() {
     // ----- SONNET CONTEST GAMEPLAY -----
     try {
       console.log("[*] Checking for active team rooms...");
-      const knownRooms = ["d-sonnet-2-team-rishi-fire-1", "d-sonnet-2-team-luxion-1"];
+      const knownRooms = ["mb-sonnet-2-rishi-fire-1-public"];
       for (const roomName of knownRooms) {
          const teamRes = await req(BASE + "/r/" + roomName + "?format=json");
          if (teamRes.ok) {
