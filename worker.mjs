@@ -244,12 +244,9 @@ async function main() {
              try { 
                 const f = JSON.parse(m.text);
                 if (f.type === "sonnet.note.v1" && f.text && f.text.includes("sonnet.roster.v1")) {
-                   // Extract the JSON payload from the text string
                    const start = f.text.indexOf('{');
                    const end = f.text.lastIndexOf('}');
-                   if (start !== -1 && end !== -1) {
-                      return JSON.parse(f.text.substring(start, end + 1));
-                   }
+                   if (start !== -1 && end !== -1) return JSON.parse(f.text.substring(start, end + 1));
                 }
                 return f;
              } catch { return null; } 
@@ -283,7 +280,17 @@ async function main() {
       if (discRes.ok) {
         const discData = await discRes.json();
         const rosters = discData.messages
-          .map(m => { try { return JSON.parse(m.text); } catch { return null; } })
+          .map(m => {
+             try { 
+                const f = JSON.parse(m.text);
+                if (f.type === "sonnet.note.v1" && f.text && f.text.includes("sonnet.roster.v1")) {
+                   const start = f.text.indexOf('{');
+                   const end = f.text.lastIndexOf('}');
+                   if (start !== -1 && end !== -1) return JSON.parse(f.text.substring(start, end + 1));
+                }
+                return f;
+             } catch { return null; } 
+          })
           .filter(f => f && f.type === "sonnet.roster.v1" && f.members && f.members.includes(agent.did));
         
         for (const roster of rosters) {
