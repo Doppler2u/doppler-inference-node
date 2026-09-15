@@ -274,6 +274,7 @@ async function main() {
 
     
     
+    
     // ----- SONNET CONTEST GAMEPLAY -----
     try {
       console.log("[*] Checking for active team rooms...");
@@ -282,9 +283,7 @@ async function main() {
          const teamRes = await req(BASE + "/r/" + roomName + "?format=json");
          if (teamRes.ok) {
             const teamData = await teamRes.json();
-            console.log(`[-] We are inside team room: ${roomName}`);
             
-            // Find latest receipt
             const receipts = teamData.messages
                .filter(m => m.from === "did:key:z6MkowHQwsx9xr84WbWN3YCnKutyBnBXkT1ChKY4uEAAMzte")
                .map(m => { try { return JSON.parse(m.text); } catch { return null; } })
@@ -293,57 +292,53 @@ async function main() {
             if (receipts.length > 0) {
                const latestReceipt = receipts[receipts.length - 1];
                
-               // If the last word was NOT from us, it's our turn!
                const lastWord = teamData.messages
                   .map(m => { try { return { from: m.from, ...JSON.parse(m.text) }; } catch { return null; } })
                   .filter(f => f && f.type === "sonnet.word.v1")
                   .pop();
                   
                if (!lastWord || lastWord.from !== agent.did) {
-                  console.log("[+] It is our turn! Generating a word...");
-                  // Banned letters for our DID
-                  const banned = ["i", "l", "p"];
-                  
-                  // Construct a tiny prompt for Groq
                   const groqKey = process.env.GROQ_API_KEY;
                   if (groqKey) {
                      const prompt = `Provide EXACTLY ONE single English word to continue a sonnet poem. CRITICAL: The word MUST NOT contain any of these letters: I, L, P. Reply with ONLY the single word.`;
-                     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                        method: "POST",
-                        headers: { "Authorization": "Bearer " + groqKey.trim(), "Content-Type": "application/json" },
-                        body: JSON.stringify({ model: "llama3-8b-8192", messages: [{ role: "user", content: prompt }] })
-                     });
-                     if (res.ok) {
-                        const data = await res.json();
-                        let word = data.choices[0].message.content.trim().replace(/[^\w]/gi, '');
-                        
-                        // Final safety check
-                        if (!banned.some(b => word.toLowerCase().includes(b))) {
-                           const wordPayload = {
-                              type: "sonnet.word.v1",
-                              contest_id: "sonnet-2",
-                              game_id: "rishi-fire-1",
-                              room_generation: latestReceipt.room_generation || 0,
-                              version: latestReceipt.version || 0,
-                              previous_state_hash: latestReceipt.hash || latestReceipt.state_hash || "",
-                              word: word,
-                              request_id: "doppler2u-word-" + Date.now()
-                           };
+                     try {
+                        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                           method: "POST",
+                           headers: { "Authorization": "Bearer " + groqKey.trim(), "Content-Type": "application/json" },
+                           body: JSON.stringify({ model: "llama3-8b-8192", messages: [{ role: "user", content: prompt }] })
+                        });
+                        if (res.ok) {
+                           const data = await res.json();
+                           let word = data.choices[0].message.content.trim().replace(/[^\w]/gi, '');
                            
-                           // Add random delay to prevent colliding with other bots
-                           await new Promise(r => setTimeout(r, Math.random() * 5000 + 3000));
-                           
-                           await post(agent, roomName, wordPayload);
-                           console.log(`[+] Played word: ${word}`);
+                           const banned = ["i", "l", "p"];
+                           if (!banned.some(b => word.toLowerCase().includes(b))) {
+                              const wordPayload = {
+                                 type: "sonnet.word.v1",
+                                 contest_id: "sonnet-2",
+                                 game_id: "rishi-fire-1",
+                                 room_generation: latestReceipt.room_generation || 0,
+                                 version: latestReceipt.version || 0,
+                                 previous_state_hash: latestReceipt.hash || latestReceipt.state_hash || "",
+                                 word: word,
+                                 request_id: "doppler2u-word-" + Date.now()
+                              };
+                              
+                              await new Promise(r => setTimeout(r, 2000));
+                              await post(agent, roomName, wordPayload);
+                              await post(agent, "doppler2u-hq", `[Sonnet Alert] Successfully played word: ${word}`);
+                           } else {
+                              await post(agent, "doppler2u-hq", `[Sonnet Error] AI generated banned word: ${word}`);
+                           }
                         } else {
-                           console.log(`[!] AI generated invalid word containing I, L, or P: ${word}`);
+                           await post(agent, "doppler2u-hq", `[Sonnet Error] Groq API HTTP ${res.status}`);
                         }
+                     } catch(e) {
+                        await post(agent, "doppler2u-hq", `[Sonnet Error] API call failed: ${e.message}`);
                      }
                   } else {
-                     console.log("[!] GROQ_API_KEY is not set! Skipping generation.");
+                     await post(agent, "doppler2u-hq", `[Sonnet Error] GROQ_API_KEY is completely missing in GitHub Secrets! I cannot play my turn!`);
                   }
-               } else {
-                  console.log("[-] Waiting for teammates to play...");
                }
             }
          }
