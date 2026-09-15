@@ -94,7 +94,7 @@ const notes = {
   async get(ns, key) {
     const res = await req(`${BASE}/kv/${ns}/${key}`, undefined, `kv get ${ns}/${key}`);
     if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`KV GET failed: ${res.status}`);
+    if (!res.ok) throw new Error(`KV GET failed: ${res.status}: ${await res.text()}\`);
     const body = await res.text();
     const value = body.split("\n").filter(l => !l.startsWith("!!") && l.trim() !== "").join("\n").trimEnd();
     return value === "" ? null : value;
@@ -104,7 +104,7 @@ const notes = {
     const url = `${BASE}/kv/${ns}/${key}/set/${encodeURIComponent(value)}${query}`;
     const res = await req(url, undefined, `kv set ${ns}/${key}`);
     if (res.status === 409) return false;
-    if (!res.ok) throw new Error(`KV SET failed: ${res.status}`);
+    if (!res.ok) throw new Error(`KV SET failed: ${res.status}: ${await res.text()}\`);
     return true;
   },
 };
@@ -128,23 +128,23 @@ async function performInference() {
   const text = summaryMatch[1].replace(/<\/?summary>/g, '').trim();
   
   const payload = {
-    model: "llama3-8b-8192",
+    model: "meta-llama/llama-3-8b-instruct:free",
     messages: [
       { role: "system", content: "You are a research node. Summarize the provided abstract in exactly one very short sentence (max 15 words)." },
       { role: "user", content: `Title: ${title}\nAbstract: ${text}` }
     ]
   };
 
-  const groqKey = process.env.GROQ_API_KEY;
+  const orKey = process.env.OPENROUTER_API_KEY;
   if (groqKey?.trim()) {
     try {
       console.log("[-] Attempting Groq inference...");
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: { "Authorization": `Bearer ${groqKey.trim()}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error(`Groq HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`Groq HTTP ${res.status}: ${await res.text()}\`);
       const data = await res.json();
       return `Real Inference (Groq) [${title}]: ${data.choices[0].message.content.trim()}`;
     } catch (e) {
@@ -162,7 +162,7 @@ async function performInference() {
         headers: { "Authorization": `Bearer ${openrouterKey.trim()}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}: ${await res.text()}\`);
       const data = await res.json();
       return `Real Inference (OpenRouter) [${title}]: ${data.choices[0].message.content.trim()}`;
     } catch (e) {
@@ -298,14 +298,14 @@ async function main() {
                   .pop();
                   
                if (!lastWord || lastWord.from !== agent.did) {
-                  const groqKey = process.env.GROQ_API_KEY;
-                  if (groqKey) {
+                  const orKey = process.env.OPENROUTER_API_KEY;
+                  if (orKey) {
                      const prompt = `Provide EXACTLY ONE single English word to continue a sonnet poem. CRITICAL: The word MUST NOT contain any of these letters: I, L, P. Reply with ONLY the single word.`;
                      try {
-                        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                            method: "POST",
-                           headers: { "Authorization": "Bearer " + groqKey.trim(), "Content-Type": "application/json" },
-                           body: JSON.stringify({ model: "llama3-8b-8192", messages: [{ role: "user", content: prompt }] })
+                           headers: { "Authorization": "Bearer " + orKey.trim(), "Content-Type": "application/json" },
+                           body: JSON.stringify({ model: "meta-llama/llama-3-8b-instruct:free", messages: [{ role: "user", content: prompt }] })
                         });
                         if (res.ok) {
                            const data = await res.json();
@@ -331,13 +331,13 @@ async function main() {
                               await post(agent, "doppler2u-hq", `[Sonnet Error] AI generated banned word: ${word}`);
                            }
                         } else {
-                           await post(agent, "doppler2u-hq", `[Sonnet Error] Groq API HTTP ${res.status}`);
+                           await post(agent, "doppler2u-hq", `[Sonnet Error] Groq API HTTP ${res.status}: ${await res.text()}\`);
                         }
                      } catch(e) {
                         await post(agent, "doppler2u-hq", `[Sonnet Error] API call failed: ${e.message}`);
                      }
                   } else {
-                     await post(agent, "doppler2u-hq", `[Sonnet Error] GROQ_API_KEY is completely missing in GitHub Secrets! I cannot play my turn!`);
+                     await post(agent, "doppler2u-hq", `[Sonnet Error] OPENROUTER_API_KEY is completely missing in GitHub Secrets! I cannot play my turn!`);
                   }
                }
             }
