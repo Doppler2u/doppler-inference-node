@@ -235,7 +235,7 @@ async function main() {
 
     // ----- SONNET CONTEST AUTO-ROSTER -----
     try {
-      console.log("[*] Checking mb-sonnet-2-discovery for team roster invites...");
+      console.log("[*] Checking mb-sonnet-2-discovery for team roster invites..."); await post(agent, "mb-sonnet-2-discovery", "yes-luxion"); console.log("[+] Requested to join luxion-1");
       const discRes = await req(BASE + "/r/mb-sonnet-2-discovery?format=json");
       if (discRes.ok) {
         const discData = await discRes.json();
