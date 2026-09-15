@@ -301,7 +301,19 @@ async function main() {
                   const groqKey = process.env.GROQ_API_KEY;
                   const orKey = process.env.OPENROUTER_API_KEY;
                   
-                  const prompt = `Provide EXACTLY ONE single English word to continue a sonnet poem. CRITICAL: The word MUST NOT contain any of these letters: I, L, P. Reply with ONLY the single word.`;
+                  const allWords = teamData.messages
+                     .map(m => { try { return JSON.parse(m.text); } catch { return null; } })
+                     .filter(f => f && f.type === "sonnet.word.v1")
+                     .map(f => f.word);
+                  const currentPoem = allWords.length > 0 ? allWords.join(" ") : "(The poem is currently empty. You are writing the very first word!)";
+                  
+                  const prompt = `You are playing a collaborative sonnet-writing game.
+The poem so far is:
+"${currentPoem}"
+
+Your task is to provide the NEXT SINGLE WORD to continue the poem grammatically and thematically.
+CRITICAL CONSTRAINT: The word MUST NOT contain any of the following letters: I, L, P.
+Reply with ONLY the single word. No punctuation. No explanation.`;
                   
                   let word = null;
                   
