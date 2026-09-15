@@ -251,7 +251,7 @@ async function main() {
                 return f;
              } catch { return null; } 
           })
-          .filter(f => f && f.type === "sonnet.roster.v1" && f.members && f.members.includes(agent.did));
+          .filter(f => f && f.type === "sonnet.roster.v1" && f.members && f.members.includes(agent.did) && f.game_id !== "rishi-fire-1" && f.game_id !== "luxion-1" && f.game_id !== "zuobai");
           
         if (rosters.length > 0) {
           const latestRoster = rosters[rosters.length - 1];
