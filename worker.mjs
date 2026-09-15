@@ -278,7 +278,7 @@ async function main() {
     // ----- SONNET CONTEST GAMEPLAY -----
     try {
       console.log("[*] Checking for active team rooms...");
-      const knownRooms = ["d-sonnet-2-team-rishi-fire-1"];
+      const knownRooms = ["d-sonnet-2-team-rishi-fire-1", "d-sonnet-2-team-luxion-1"];
       for (const roomName of knownRooms) {
          const teamRes = await req(BASE + "/r/" + roomName + "?format=json");
          if (teamRes.ok) {
