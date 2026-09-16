@@ -279,6 +279,27 @@ async function main() {
     try {
       console.log("[*] Checking for active team rooms...");
       const knownRooms = ["d-sonnet-2-team-rishi-fire-1"];
+      
+      // DYNAMICALLY find any rooms we are registered to play in
+      try {
+        const discRes = await req(BASE + "/r/mb-sonnet-2-discovery?format=json");
+        if (discRes.ok) {
+           const discData = await discRes.json();
+           for (const m of discData.messages) {
+               try {
+                   const f = JSON.parse(m.text);
+                   if (f.type === "sonnet.roster.v1" && f.members && f.members.includes(agent.did)) {
+                       if (f.poem_room && !knownRooms.includes(f.poem_room)) {
+                           knownRooms.push(f.poem_room);
+                       }
+                   }
+               } catch(e) {}
+           }
+        }
+      } catch(e) {}
+      
+      console.log("[+] Active rooms to check:", knownRooms);
+
       for (const roomName of knownRooms) {
          const teamRes = await req(BASE + "/r/" + roomName + "?format=json");
          if (teamRes.ok) {
