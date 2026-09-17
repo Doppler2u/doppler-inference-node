@@ -34,4 +34,4 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           node worker.mjs
-          node repost_application.mjs
+          

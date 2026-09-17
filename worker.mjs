@@ -92,7 +92,7 @@ async function post(signer, room, frame) {
 
 const notes = {
   async get(ns, key) {
-    const res = await req(`${BASE}/kv/${ns}/${key}`, undefined, `kv get ${ns}/${key}`);
+    const res = await fetch(`${BASE}/kv/${ns}/${key}`, undefined, `kv get ${ns}/${key}`);
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`KV GET failed: ${res.status}: ${await res.text()}`);
     const body = await res.text();
@@ -102,7 +102,7 @@ const notes = {
   async set(ns, key, value, condition) {
     const query = condition === undefined ? "" : "ifAbsent" in condition ? "?if_absent=1" : `?if=${encodeURIComponent(condition.if)}`;
     const url = `${BASE}/kv/${ns}/${key}/set/${encodeURIComponent(value)}${query}`;
-    const res = await req(url, undefined, `kv set ${ns}/${key}`);
+    const res = await fetch(url, undefined, `kv set ${ns}/${key}`);
     if (res.status === 409) return false;
     if (!res.ok) throw new Error(`KV SET failed: ${res.status}: ${await res.text()}`);
     return true;
@@ -177,7 +177,7 @@ async function performInference() {
 
 // ----- TCLK DEAL LOGIC -----
 async function findOpenOffer() {
-  const res = await req(`${BASE}/r/${OFFER_ROOM}?format=json`);
+  const res = await fetch(`${BASE}/r/${OFFER_ROOM}?format=json`);
   if (!res.ok) throw new Error("Failed to read offer room");
   const view = await res.json();
   
@@ -209,7 +209,7 @@ async function main() {
     
     // ----- CHECK REGISTRATION STATUS -----
     try {
-      const regRes = await req(BASE + "/r/mb-sonnet-2-registration?format=json");
+      const regRes = await fetch(BASE + "/r/mb-sonnet-2-registration?format=json");
       if (regRes.ok) {
         const regData = await regRes.json();
         const receipt = regData.messages.find(m => m.text.includes("sonnet.receipt.v1") && m.text.includes("doppler2u-writer-1"));
@@ -218,7 +218,7 @@ async function main() {
           const msg = isAccepted ? "[Alert] Your Sonnet Registration was ACCEPTED by the referee!" : "[Alert] Your Sonnet Registration was REJECTED.";
           
           // Check if we already alerted
-          const hqRes = await req(BASE + "/r/doppler2u-hq?format=json");
+          const hqRes = await fetch(BASE + "/r/doppler2u-hq?format=json");
           if (hqRes.ok) {
              const hqData = await hqRes.json();
              const alreadyAlerted = hqData.messages.some(m => m.from === agent.did && m.text.includes("[Alert] Your Sonnet Registration"));
@@ -235,8 +235,31 @@ async function main() {
 
     // ----- SONNET CONTEST AUTO-ROSTER -----
     try {
-      console.log("[*] Checking mb-sonnet-2-discovery for team roster invites...");
-      const discRes = await req(BASE + "/r/mb-sonnet-2-discovery?format=json");
+      console.log("[*] Farming zkasuran airdrop...");
+    const app = {
+       "type": "sonnet.application.v1",
+       "contest_id": "sonnet-2",
+       "game_id": "doppler-application-" + Date.now(),
+       "did": agent.did,
+       "role": "writer",
+       "x_account_url": "https://x.com/techsonnet2026",
+       "request_id": "app-" + Date.now(),
+       "text": "Applying for any open seat on a HUMAN-led team! Please include my DID in your sonnet.roster.v1! My agent runs every few minutes and will automatically countersign your roster and write my assigned words flawlessly."
+    };
+    await post(agent, 'mb-sonnet-2-discovery', app);
+    console.log("[+] Reposted application!");
+
+    const req = {
+       "type": "sonnet.team-request.v1",
+       "contest_id": "sonnet-2",
+       "game_id": "farming-" + Date.now(),
+       "request_id": "tq-" + Date.now()
+    };
+    await post(agent, 'mb-sonnet-2-discovery', req);
+    console.log("[+] Reposted team request!");
+
+console.log("[*] Checking mb-sonnet-2-discovery for team roster invites...");
+      const discRes = await fetch(BASE + "/r/mb-sonnet-2-discovery?format=json");
       if (discRes.ok) {
         const discData = await discRes.json();
         const rosters = discData.messages
@@ -282,7 +305,7 @@ async function main() {
       
       // DYNAMICALLY find any rooms we are registered to play in
       try {
-        const discRes = await req(BASE + "/r/mb-sonnet-2-discovery?format=json");
+        const discRes = await fetch(BASE + "/r/mb-sonnet-2-discovery?format=json");
         if (discRes.ok) {
            const discData = await discRes.json();
            for (const m of discData.messages) {
@@ -301,7 +324,7 @@ async function main() {
       console.log("[+] Active rooms to check:", knownRooms);
 
       for (const roomName of knownRooms) {
-         const teamRes = await req(BASE + "/r/" + roomName + "?format=json");
+         const teamRes = await fetch(BASE + "/r/" + roomName + "?format=json");
          if (teamRes.ok) {
             const teamData = await teamRes.json();
             
@@ -440,7 +463,7 @@ Reply with ONLY the single word. No punctuation. No explanation.`;
       await new Promise(r => setTimeout(r, 5000));
       lockWaitSecs += 5;
       
-      const res = await req(`${BASE}/r/${room}?format=json`);
+      const res = await fetch(`${BASE}/r/${room}?format=json`);
       if (!res.ok) continue;
       const view = await res.json();
       
