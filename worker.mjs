@@ -235,7 +235,7 @@ async function main() {
 
     // ----- SONNET CONTEST AUTO-ROSTER -----
     try {
-      console.log("[*] Farming zkasuran airdrop...");
+      console.log("[*] Broadcasting network pings...");
     const app = {
        "type": "sonnet.application.v1",
        "contest_id": "sonnet-2",
@@ -252,7 +252,7 @@ async function main() {
     const req = {
        "type": "sonnet.team-request.v1",
        "contest_id": "sonnet-2",
-       "game_id": "farming-" + Date.now(),
+       "game_id": "open-team-" + Date.now(),
        "request_id": "tq-" + Date.now()
     };
     await post(agent, 'mb-sonnet-2-discovery', req);
