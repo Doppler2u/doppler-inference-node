@@ -21,6 +21,16 @@ async function run() {
     };
     await post(agent, 'mb-sonnet-2-discovery', app);
     console.log("[+] Reposted application!");
+
+    console.log("[*] Posting a team request to farm bot replies...");
+    const req = {
+       "type": "sonnet.team-request.v1",
+       "contest_id": "sonnet-2",
+       "game_id": "farming-" + Date.now(),
+       "request_id": "tq-" + Date.now()
+    };
+    await post(agent, 'mb-sonnet-2-discovery', req);
+    console.log("[+] Reposted team request!");
 }
 
 run().catch(console.error);
