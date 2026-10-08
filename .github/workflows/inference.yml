@@ -1,7 +1,7 @@
 name: Airdrop Farmer
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 */2 * * *'
   workflow_dispatch:
 
 jobs:
@@ -16,9 +16,8 @@ jobs:
       - name: Reconstruct Identity File
         run: |
           echo "${{ secrets.IDENTITY_PEM_BASE64 }}" | base64 --decode > identity.pem
-      - run: node trader.mjs
+      - run: node worker.mjs
         env:
-          BOT_STYLE: conservative
           PASSPHRASE: "${{ secrets.PASSPHRASE }}"
           IDENTITY_PATH: identity.pem
           GROQ_API_KEY: "${{ secrets.GROQ_API_KEY }}"
